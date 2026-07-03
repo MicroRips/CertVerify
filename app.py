@@ -24,14 +24,16 @@ def get_query_param(key, default=None):
     """Works with both new (st.query_params) and old (st.experimental_get_query_params) Streamlit versions."""
     try:
         # New way (Streamlit >= 1.30.0)
-        return st.query_params.get(key, default)
+        value = st.query_params.get(key, default)
     except AttributeError:
-        # Fallback to old way
         params = st.experimental_get_query_params()
         if key in params:
-            # In old versions, values are lists; take the first one
-            return params[key][0]
-        return default
+            value = params[key][0]
+        else:
+            value = default
+    if isinstance(value, list):
+        return value[0] if value else default
+    return value
 
 # ---------- Custom CSS ----------
 st.markdown("""
@@ -179,12 +181,13 @@ st.markdown("""
 
 # ---------- Verification Logic ----------
 payload = get_query_param("payload")
+cert_id_param = get_query_param("cert_id")
 
-if not payload:
+if not payload and not cert_id_param:
     cert_id = st.text_input("Enter Certificate ID", placeholder="e.g., CERT-2024-001")
     verify_clicked = st.button("Verify Certificate")
 else:
-    cert_id = None
+    cert_id = cert_id_param
     verify_clicked = True
 
 if verify_clicked:
@@ -221,6 +224,8 @@ if verify_clicked:
             if not cert_id:
                 st.error("❌ Certificate ID not found in signed data.")
                 st.stop()
+        elif cert_id_param:
+            cert_id = cert_id_param
         
         # Query Supabase using cert_id
         if cert_id:
